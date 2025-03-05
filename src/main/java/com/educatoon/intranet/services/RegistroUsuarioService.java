@@ -4,6 +4,7 @@ import com.educatoon.intranet.dto.RegistroUsuarioDTO;
 import com.educatoon.intranet.models.*;
 import com.educatoon.intranet.repositories.CredencialesRepository;
 import com.educatoon.intranet.repositories.PerfilRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ public class RegistroUsuarioService {
     private final PerfilRepository perfilRepository;
 
     private final CredencialesRepository credencialesRepository;
+
     @Autowired
     public RegistroUsuarioService(PerfilRepository perfilRepository, CredencialesRepository credencialesRepository) {
         this.perfilRepository = perfilRepository;
@@ -76,5 +78,69 @@ public class RegistroUsuarioService {
         credencialesRepository.save(credenciales);
 
         return "Usuario registrado exitosamente como " + dto.getTipoPerfil();
+    }
+
+    public boolean actualizarUsuario(String correo, RegistroUsuarioDTO dto) {
+        Optional<Perfil> perfilExistente = perfilRepository.findByCorreo(correo);
+        if (perfilExistente.isPresent()) {
+            Perfil perfil = perfilExistente.get();
+            // Asignar datos generales
+            perfil.setNombre(dto.getNombre());
+            perfil.setFechaNacimiento(dto.getFechaNacimiento());
+            perfil.setDni(dto.getDni());
+            perfil.setGenero(dto.getGenero());
+            perfil.setTelefono(dto.getTelefono());
+            perfil.setCorreo(perfilExistente.get().getCorreo());
+
+            switch (dto.getTipoPerfil()) { // 🔥 Ahora usa el Enum directamente
+                case ESTUDIANTE:
+                    if (perfil instanceof PerfilEstudiante) {
+                        ((PerfilEstudiante) perfil).setCodigoEstudiante("EST-" + dto.getDni());
+                    }
+                    break;
+                case PROFESOR:
+                    if (perfil instanceof PerfilProfesor) {
+                        ((PerfilProfesor) perfil).setCurso("Curso Actualizado");
+                    }
+                    break;
+                case ADMINISTRADOR:
+                    if (perfil instanceof PerfilAdministrador) {
+                        ((PerfilAdministrador) perfil).setNivelAcceso(2);
+                        ((PerfilAdministrador) perfil).setClaveSeguridad("NEW_KEY");
+                    }
+                    break;
+                case COORDINADOR:
+                    break;
+                default:
+                    return false;
+            }
+
+            // Guardar perfil en la BD primero
+            perfil = perfilRepository.save(perfil);
+
+            Optional<Credenciales> credencialesExistentes = Optional.ofNullable(credencialesRepository.findByCorreo(dto.getCorreo()));
+            if (credencialesExistentes.isPresent()) {
+                Credenciales credenciales = credencialesExistentes.get();
+                credenciales.setContrasenia(passwordEncoder.encode(dto.getContrasenia()));
+                credenciales.setPerfil(perfil);
+                credencialesRepository.save(credenciales); // 🔥 Realiza el UPDATE;
+
+                perfilRepository.save(perfil);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Transactional
+    public boolean eliminarUsuario(String correo) {
+        Optional<Perfil> perfilExistente = perfilRepository.findByCorreo(correo);
+        if (perfilExistente.isPresent()) {
+            Perfil perfil = perfilExistente.get();
+            credencialesRepository.deleteByPerfil(perfil);
+            perfilRepository.delete(perfil);
+            return true;
+        }
+        return false;
     }
 }

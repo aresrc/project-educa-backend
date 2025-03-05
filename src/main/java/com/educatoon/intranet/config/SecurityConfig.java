@@ -24,9 +24,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll() // Permitir acceso a H2
                         .requestMatchers("/").permitAll() // Permitir acceso a la página de inicio
-                        .requestMatchers("/api/usuarios/registrar").permitAll() // Permitir registro sin autenticación
-                        .requestMatchers("/api/auth/login").permitAll() // Rutas de la API requieren autenticación
-                        .anyRequest().authenticated() // Otras rutas requieren autenticación
+                        .requestMatchers("/api/**").permitAll() // Permitir acceso a la API
+                        .anyRequest().permitAll() // Otras rutas requieren autenticación
                 )
                 .formLogin(login -> login.disable())
                 .httpBasic(basic -> basic.disable());
@@ -40,7 +39,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
